@@ -2,20 +2,305 @@
 <html lang="bn">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rolling Sky 3D - Adventure Ball Game</title>
-    <!-- CSS Stylesheet -->
-    <link rel="stylesheet" href="style.css">
-    <!-- 3D Engines via CDN -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Rolling Sky 3D</title>
+    <!-- 3D Engines -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/cannon.js/0.6.2/cannon.min.js"></script>
+    
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            font-family: 'Segoe UI', Roboto, sans-serif;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            background-color: #090d16;
+            color: #ffffff;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            touch-action: none;
+        }
+
+        /* --- AD SLOTS --- */
+        .ad-container {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px dashed rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #64748b;
+            font-size: 11px;
+            font-weight: 700;
+            z-index: 10;
+            text-transform: uppercase;
+            flex-shrink: 0;
+        }
+
+        #top-ad-slot {
+            width: 100%;
+            max-width: 728px;
+            height: 65px;
+            margin-top: 5px;
+        }
+
+        #bottom-ad-slot {
+            width: 100%;
+            max-width: 728px;
+            height: 65px;
+            margin-bottom: 5px;
+        }
+
+        /* --- MAIN CONTAINER --- */
+        #app-container {
+            position: relative;
+            width: 100%;
+            max-width: 900px;
+            flex: 1;
+            background: #0f172a;
+            border-radius: 12px;
+            border: 1px solid #1e293b;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- SCREENS --- */
+        .screen {
+            position: absolute;
+            top: 0; left: 0; 
+            width: 100%; height: 100%;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            z-index: 5;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        /* HOME SCREEN */
+        .game-title {
+            font-size: 36px;
+            font-weight: 900;
+            background: linear-gradient(135deg, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+            text-align: center;
+        }
+
+        .subtitle {
+            color: #94a3b8;
+            font-size: 13px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .home-ad-box {
+            width: 300px;
+            height: 200px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+        }
+
+        /* BUTTONS */
+        .btn {
+            border: none;
+            padding: 12px 32px;
+            border-radius: 30px;
+            font-size: 15px;
+            font-weight: 800;
+            cursor: pointer;
+            transition: transform 0.2s;
+            text-transform: uppercase;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #2563eb, #3b82f6);
+            color: white;
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.4);
+        }
+
+        .btn-primary:active { transform: scale(0.96); }
+
+        .btn-secondary {
+            background: #334155;
+            color: #cbd5e1;
+            margin-top: 10px;
+        }
+
+        /* LEVEL SELECT GRID */
+        .coins-display {
+            font-size: 15px;
+            font-weight: 700;
+            color: #facc15;
+            margin-bottom: 15px;
+            background: rgba(250, 204, 21, 0.1);
+            padding: 5px 15px;
+            border-radius: 20px;
+            border: 1px solid rgba(250, 204, 21, 0.3);
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin: 15px 0;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .level-card {
+            background: #1e293b;
+            border: 2px solid #334155;
+            border-radius: 12px;
+            padding: 15px 5px;
+            text-align: center;
+            font-size: 20px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .level-card.unlocked {
+            border-color: #38bdf8;
+            color: #38bdf8;
+        }
+
+        .level-card.locked {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        /* GAMEPLAY CANVAS & HUD */
+        #game-screen {
+            padding: 0;
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0; left: 0;
+            z-index: 1;
+        }
+
+        #hud-ui {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            right: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        .hud-pill {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(8px);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 13px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .hud-btn {
+            pointer-events: auto;
+            background: rgba(15, 23, 42, 0.85);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: white;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        /* MOBILE CONTROLS */
+        #mobile-controls {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 12px;
+            z-index: 10;
+            pointer-events: auto;
+        }
+
+        .dpad-btn {
+            width: 52px;
+            height: 52px;
+            background: rgba(30, 41, 59, 0.75);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            color: white;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+
+        /* MODALS */
+        .modal-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(9, 13, 22, 0.92);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 30;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-card {
+            background: #1e293b;
+            padding: 20px;
+            border-radius: 16px;
+            text-align: center;
+            width: 88%;
+            max-width: 360px;
+            border: 1px solid #334155;
+        }
+
+        .modal-ad-box {
+            width: 100%;
+            height: 180px;
+            margin: 12px 0;
+            border-radius: 8px;
+        }
+    </style>
 </head>
 <body>
 
-    <!-- TOP PERMANENT BANNER AD -->
+    <!-- TOP BANNER AD -->
     <div id="top-ad-slot" class="ad-container">
         <span>TOP BANNER AD (728x90 / 320x50)</span>
-        <!-- Paste your AdSense / Adsterra Banner Code Here -->
     </div>
 
     <!-- MAIN APP CONTAINER -->
@@ -27,90 +312,431 @@
             <p class="subtitle">Ultimate 3D Physics Balance Quest</p>
             
             <div class="home-ad-box ad-container">
-                <span>HOME SCREEN LARGE AD (300x250)</span>
-                <!-- Insert Ad Code -->
+                <span>HOME SCREEN AD (300x250)</span>
             </div>
 
-            <div class="btn-group">
-                <button class="btn btn-primary" onclick="showScreen('level-select-screen')">গেম খেলুন (PLAY)</button>
-            </div>
+            <button class="btn btn-primary" onclick="showScreen('level-select-screen')">গেম খেলুন (PLAY)</button>
         </div>
 
         <!-- 2. LEVEL SELECT SCREEN -->
         <div id="level-select-screen" class="screen">
-            <h2>লেভেল সিলেক্ট করুন</h2>
-            <p class="coins-display">মোট কয়েন: <span id="total-coins">0</span> 🪙</p>
+            <h2 style="font-size: 20px; margin-bottom: 5px;">লেভেল সিলেক্ট করুন</h2>
+            <div class="coins-display">মোট কয়েন: <span id="total-coins">0</span> 🪙</div>
 
-            <div id="levels-grid" class="grid-container">
-                <!-- Dynamically generated by JS -->
-            </div>
-
-            <div class="level-ad-box ad-container">
-                <span>LEVEL SELECT BANNER AD</span>
-                <!-- Insert Ad Code -->
-            </div>
+            <div id="levels-grid" class="grid-container"></div>
 
             <button class="btn btn-secondary" onclick="showScreen('home-screen')">পিছনে যান</button>
         </div>
 
-        <!-- 3. GAMEPLAY SCREEN (CANVAS + HUD) -->
+        <!-- 3. GAMEPLAY SCREEN -->
         <div id="game-screen" class="screen">
-            <!-- HUD OVERLAY -->
             <div id="hud-ui">
-                <div class="hud-pill">কয়েন: <span id="coins-count">0</span></div>
-                <div class="hud-pill">লেভেল: <span id="current-level-num">1</span></div>
-                <button class="hud-btn" onclick="pauseGame()">⏸️</button>
+                <div style="display: flex; gap: 8px;">
+                    <div class="hud-pill">🪙 <span id="coins-count">0</span></div>
+                    <div class="hud-pill">LEVEL <span id="current-level-num">1</span></div>
+                </div>
+                <button class="hud-btn" onclick="showScreen('level-select-screen')">✕</button>
             </div>
 
-            <!-- 3D RENDER CANVAS -->
             <div id="canvas-container"></div>
+
+            <div id="mobile-controls">
+                <button class="dpad-btn" id="btn-left">◀</button>
+                <button class="dpad-btn" id="btn-up">▲</button>
+                <button class="dpad-btn" id="btn-down">▼</button>
+                <button class="dpad-btn" id="btn-right">▶</button>
+            </div>
         </div>
 
         <!-- 4. GAME OVER MODAL -->
         <div id="game-over-modal" class="modal-overlay">
             <div class="modal-card">
-                <h2 style="color: #ef4444;">GAME OVER</h2>
-                <p>আপনি পড়ে গেছেন! আবার চেষ্টা করুন।</p>
+                <h2 style="color: #ef4444; font-size: 24px;">GAME OVER</h2>
+                <p style="color: #94a3b8; font-size: 13px;">আপনি পড়ে গেছেন! আবার চেষ্টা করুন।</p>
                 
                 <div class="modal-ad-box ad-container">
-                    <span>INTERSTITIAL AD (HIGH REVENUE)</span>
-                    <!-- Insert High-Paying Ad Code -->
+                    <span>INTERSTITIAL AD (300x250)</span>
                 </div>
 
-                <div class="modal-buttons">
-                    <button class="btn btn-primary" onclick="retryLevel()">পুনরায় চেষ্টা (RETRY)</button>
-                    <button class="btn btn-secondary" onclick="showScreen('level-select-screen')">লেভেল মেনু</button>
-                </div>
+                <button class="btn btn-primary" onclick="retryLevel()">পুনরায় চেষ্টা (RETRY)</button>
+                <button class="btn btn-secondary" onclick="showScreen('level-select-screen')">লেভেল মেনু</button>
             </div>
         </div>
 
         <!-- 5. LEVEL WIN MODAL -->
         <div id="level-win-modal" class="modal-overlay">
             <div class="modal-card">
-                <h2 style="color: #22c55e;">VICTORY!</h2>
-                <p>অভিনন্দন! লেভেল সম্পন্ন হয়েছে।</p>
+                <h2 style="color: #22c55e; font-size: 24px;">VICTORY!</h2>
+                <p style="color: #94a3b8; font-size: 13px;">অভিনন্দন! লেভেল সম্পন্ন হয়েছে।</p>
                 
                 <div class="modal-ad-box ad-container">
-                    <span>REWARDED / VICTORY AD (300x250)</span>
-                    <!-- Insert High-Paying Ad Code -->
+                    <span>VICTORY REWARDED AD</span>
                 </div>
 
-                <div class="modal-buttons">
-                    <button class="btn btn-primary" onclick="nextLevel()">পরবর্তী লেভেল</button>
-                    <button class="btn btn-secondary" onclick="showScreen('level-select-screen')">লেভেল মেনু</button>
-                </div>
+                <button class="btn btn-primary" onclick="nextLevel()">পরবর্তী লেভেল ▶</button>
+                <button class="btn btn-secondary" onclick="showScreen('level-select-screen')">লেভেল মেনু</button>
             </div>
         </div>
 
     </div>
 
-    <!-- BOTTOM PERMANENT BANNER AD -->
+    <!-- BOTTOM STICKY AD -->
     <div id="bottom-ad-slot" class="ad-container">
         <span>BOTTOM STICKY AD (728x90 / 320x50)</span>
-        <!-- Paste your Ad Code Here -->
     </div>
 
-    <!-- Main Game Script -->
-    <script src="game.js"></script>
+    <script>
+        // --- GAME STATE ---
+        let gameState = {
+            unlockedLevel: parseInt(localStorage.getItem('unlockedLevel')) || 1,
+            currentLevel: 1,
+            coins: parseInt(localStorage.getItem('totalCoins')) || 0,
+            isPlaying: false
+        };
+
+        const levelDesigns = [
+            {
+                id: 1,
+                trackLength: 120,
+                narrowBridges: [{ zStart: -30, zEnd: -60, width: 3.5 }],
+                movingObstacles: [],
+                pendulums: [],
+                coinPositions: [{x:0, z:-15}, {x:0, z:-40}, {x:0, z:-80}]
+            },
+            {
+                id: 2,
+                trackLength: 160,
+                narrowBridges: [{ zStart: -40, zEnd: -80, width: 3.0 }],
+                movingObstacles: [{ z: -25, speed: 3.0, range: 2.5 }, { z: -100, speed: 4.0, range: 2.0 }],
+                pendulums: [],
+                coinPositions: [{x:0, z:-20}, {x:0, z:-60}, {x:0, z:-110}]
+            },
+            {
+                id: 3,
+                trackLength: 200,
+                narrowBridges: [{ zStart: -30, zEnd: -70, width: 2.8 }, { zStart: -110, zEnd: -150, width: 2.5 }],
+                movingObstacles: [{ z: -90, speed: 4.5, range: 2.5 }],
+                pendulums: [{ z: -50, length: 7, swingSpeed: 3.0, swingAmplitude: 3.5 }],
+                coinPositions: [{x:0, z:-25}, {x:0, z:-80}, {x:0, z:-130}]
+            },
+            {
+                id: 4,
+                trackLength: 240,
+                narrowBridges: [{ zStart: -20, zEnd: -60, width: 2.2 }, { zStart: -90, zEnd: -140, width: 2.0 }],
+                movingObstacles: [{ z: -75, speed: 5.0, range: 2.8 }],
+                pendulums: [{ z: -40, length: 7, swingSpeed: 3.5, swingAmplitude: 3.5 }, { z: -120, length: 7, swingSpeed: 4.5, swingAmplitude: 3.5 }],
+                coinPositions: [{x:0, z:-30}, {x:0, z:-70}, {x:0, z:-110}, {x:0, z:-160}]
+            }
+        ];
+
+        function showScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+
+            if (screenId === 'level-select-screen') {
+                renderLevelGrid();
+            } else if (screenId === 'game-screen') {
+                // Short delay ensures screen DOM dimensions are rendered properly before Three.js starts
+                setTimeout(() => startLevel(gameState.currentLevel), 50);
+            } else {
+                stopGameEngine();
+            }
+        }
+
+        function renderLevelGrid() {
+            const grid = document.getElementById('levels-grid');
+            grid.innerHTML = '';
+            document.getElementById('total-coins').innerText = gameState.coins;
+
+            levelDesigns.forEach(lvl => {
+                const card = document.createElement('div');
+                const isUnlocked = lvl.id <= gameState.unlockedLevel;
+                card.className = `level-card ${isUnlocked ? 'unlocked' : 'locked'}`;
+                card.innerText = isUnlocked ? lvl.id : '🔒';
+                
+                if (isUnlocked) {
+                    card.onclick = () => {
+                        gameState.currentLevel = lvl.id;
+                        showScreen('game-screen');
+                    };
+                }
+                grid.appendChild(card);
+            });
+        }
+
+        // --- 3D ENGINE SYSTEM ---
+        let scene, camera, renderer, physicsWorld;
+        let ballBody, ballMesh;
+        let dynamicObstaclesList = [], pendulumsList = [], coinsList = [];
+        let keys = { ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false, w: false, a: false, s: false, d: false };
+        let animationFrameId, gameTime = 0;
+
+        function setupMobileControls() {
+            const bindBtn = (id, keyName) => {
+                const btn = document.getElementById(id);
+                btn.onpointerdown = (e) => { e.preventDefault(); keys[keyName] = true; };
+                btn.onpointerup = (e) => { e.preventDefault(); keys[keyName] = false; };
+            };
+            bindBtn('btn-left', 'ArrowLeft');
+            bindBtn('btn-right', 'ArrowRight');
+            bindBtn('btn-up', 'ArrowUp');
+            bindBtn('btn-down', 'ArrowDown');
+        }
+
+        function startLevel(levelId) {
+            stopGameEngine();
+
+            const levelData = levelDesigns.find(l => l.id === levelId);
+            document.getElementById('current-level-num').innerText = levelId;
+            document.getElementById('coins-count').innerText = gameState.coins;
+
+            const container = document.getElementById('canvas-container');
+            container.innerHTML = ''; 
+
+            const width = container.clientWidth || window.innerWidth;
+            const height = container.clientHeight || window.innerHeight;
+
+            // Scene Setup
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x090d16);
+
+            camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000);
+            
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(width, height);
+            renderer.shadowMap.enabled = true;
+            container.appendChild(renderer.domElement);
+
+            // Lighting
+            scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+            const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            dirLight.position.set(15, 30, 15);
+            dirLight.castShadow = true;
+            scene.add(dirLight);
+
+            // Physics World
+            physicsWorld = new CANNON.World();
+            physicsWorld.gravity.set(0, -9.82, 0);
+
+            dynamicObstaclesList = [];
+            pendulumsList = [];
+            coinsList = [];
+            gameTime = 0;
+
+            buildLevel(levelData);
+            createPlayerBall();
+            spawnCoins(levelData.coinPositions);
+
+            window.onkeydown = (e) => keys[e.key] = true;
+            window.onkeyup = (e) => keys[e.key] = false;
+            setupMobileControls();
+
+            gameState.isPlaying = true;
+            gameLoop();
+        }
+
+        function buildLevel(levelData) {
+            const totalLen = levelData.trackLength;
+            const defaultWidth = 7.0;
+            let currentZ = 0;
+
+            while (currentZ > -totalLen) {
+                const activeBridge = levelData.narrowBridges.find(b => currentZ <= b.zStart && currentZ >= b.zEnd);
+                const width = activeBridge ? activeBridge.width : defaultWidth;
+
+                const segMesh = new THREE.Mesh(
+                    new THREE.BoxGeometry(width, 1, 4.1),
+                    new THREE.MeshStandardMaterial({ color: activeBridge ? 0xd97706 : 0x1e293b })
+                );
+                segMesh.position.set(0, -0.5, currentZ);
+                segMesh.receiveShadow = true;
+                scene.add(segMesh);
+
+                const segBody = new CANNON.Body({ mass: 0, shape: new CANNON.Box(new CANNON.Vec3(width / 2, 0.5, 2.05)) });
+                segBody.position.set(0, -0.5, currentZ);
+                physicsWorld.addBody(segBody);
+
+                currentZ -= 4;
+            }
+
+            // Finish Line
+            const finishMesh = new THREE.Mesh(
+                new THREE.BoxGeometry(8, 0.4, 6),
+                new THREE.MeshStandardMaterial({ color: 0x22c55e })
+            );
+            finishMesh.position.set(0, -0.2, -totalLen - 3);
+            scene.add(finishMesh);
+
+            // Moving Obstacles
+            levelData.movingObstacles.forEach(obs => {
+                const boxMesh = new THREE.Mesh(
+                    new THREE.BoxGeometry(2, 1.6, 1.5),
+                    new THREE.MeshStandardMaterial({ color: 0xef4444 })
+                );
+                scene.add(boxMesh);
+
+                const boxBody = new CANNON.Body({ mass: 0, shape: new CANNON.Box(new CANNON.Vec3(1, 0.8, 0.75)) });
+                boxBody.position.set(0, 0.8, obs.z);
+                physicsWorld.addBody(boxBody);
+
+                dynamicObstaclesList.push({ mesh: boxMesh, body: boxBody, speed: obs.speed, range: obs.range });
+            });
+
+            // Pendulums
+            levelData.pendulums.forEach(p => {
+                const group = new THREE.Group();
+                group.position.set(0, 7, p.z);
+
+                const bobMesh = new THREE.Mesh(
+                    new THREE.SphereGeometry(1.2, 16, 16),
+                    new THREE.MeshStandardMaterial({ color: 0xd97706, metalness: 0.8 })
+                );
+                bobMesh.position.set(0, -p.length, 0);
+                group.add(bobMesh);
+                scene.add(group);
+
+                const bobBody = new CANNON.Body({ mass: 0, shape: new CANNON.Sphere(1.2) });
+                bobBody.position.set(0, 0, p.z);
+                physicsWorld.addBody(bobBody);
+
+                pendulumsList.push({ group: group, body: bobBody, z: p.z, length: p.length, speed: p.swingSpeed, amplitude: p.swingAmplitude });
+            });
+        }
+
+        function createPlayerBall() {
+            ballBody = new CANNON.Body({
+                mass: 2,
+                shape: new CANNON.Sphere(0.9),
+                linearDamping: 0.25,
+                angularDamping: 0.25
+            });
+            ballBody.position.set(0, 2, 2);
+            physicsWorld.addBody(ballBody);
+
+            ballMesh = new THREE.Mesh(
+                new THREE.SphereGeometry(0.9, 32, 32),
+                new THREE.MeshStandardMaterial({ color: 0x38bdf8, roughness: 0.2, metalness: 0.5 })
+            );
+            ballMesh.castShadow = true;
+            scene.add(ballMesh);
+        }
+
+        function spawnCoins(positions) {
+            positions.forEach(pos => {
+                const coinMesh = new THREE.Mesh(
+                    new THREE.TorusGeometry(0.4, 0.12, 12, 24),
+                    new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.8 })
+                );
+                coinMesh.position.set(pos.x, 1.2, pos.z);
+                coinMesh.rotation.x = Math.PI / 2;
+                scene.add(coinMesh);
+
+                coinsList.push({ mesh: coinMesh, collected: false });
+            });
+        }
+
+        function gameLoop() {
+            if (!gameState.isPlaying) return;
+
+            gameTime += 0.016;
+            physicsWorld.step(1 / 60);
+
+            ballMesh.position.copy(ballBody.position);
+            ballMesh.quaternion.copy(ballBody.quaternion);
+
+            const force = 12;
+            if (keys.ArrowUp || keys.w) ballBody.applyForce(new CANNON.Vec3(0, 0, -force), ballBody.position);
+            if (keys.ArrowDown || keys.s) ballBody.applyForce(new CANNON.Vec3(0, 0, force), ballBody.position);
+            if (keys.ArrowLeft || keys.a) ballBody.applyForce(new CANNON.Vec3(-force, 0, 0), ballBody.position);
+            if (keys.ArrowRight || keys.d) ballBody.applyForce(new CANNON.Vec3(force, 0, 0), ballBody.position);
+
+            camera.position.x = THREE.MathUtils.lerp(camera.position.x, ballMesh.position.x, 0.1);
+            camera.position.y = THREE.MathUtils.lerp(camera.position.y, ballMesh.position.y + 4.5, 0.1);
+            camera.position.z = ballMesh.position.z + 8.5;
+            camera.lookAt(ballMesh.position.x, ballMesh.position.y + 0.5, ballMesh.position.z - 2);
+
+            dynamicObstaclesList.forEach(obs => {
+                const posX = Math.sin(gameTime * obs.speed) * obs.range;
+                obs.body.position.x = posX;
+                obs.mesh.position.x = posX;
+            });
+
+            pendulumsList.forEach(p => {
+                const swingAngle = Math.sin(gameTime * p.speed) * (p.amplitude / p.length);
+                p.group.rotation.z = swingAngle;
+                p.body.position.set(Math.sin(swingAngle) * p.length, 7 - Math.cos(swingAngle) * p.length, p.z);
+            });
+
+            coinsList.forEach(coin => {
+                if (!coin.collected) {
+                    coin.mesh.rotation.z += 0.04;
+                    if (ballMesh.position.distanceTo(coin.mesh.position) < 1.3) {
+                        coin.collected = true;
+                        scene.remove(coin.mesh);
+                        gameState.coins += 5;
+                        document.getElementById('coins-count').innerText = gameState.coins;
+                        localStorage.setItem('totalCoins', gameState.coins);
+                    }
+                }
+            });
+
+            if (ballBody.position.y < -4) {
+                gameState.isPlaying = false;
+                document.getElementById('game-over-modal').classList.add('active');
+                return;
+            }
+
+            const levelData = levelDesigns.find(l => l.id === gameState.currentLevel);
+            if (ballBody.position.z <= -levelData.trackLength - 1) {
+                gameState.isPlaying = false;
+                onLevelWin();
+                return;
+            }
+
+            renderer.render(scene, camera);
+            animationFrameId = requestAnimationFrame(gameLoop);
+        }
+
+        function onLevelWin() {
+            if (gameState.currentLevel === gameState.unlockedLevel && gameState.unlockedLevel < levelDesigns.length) {
+                gameState.unlockedLevel++;
+                localStorage.setItem('unlockedLevel', gameState.unlockedLevel);
+            }
+            document.getElementById('level-win-modal').classList.add('active');
+        }
+
+        function retryLevel() {
+            document.getElementById('game-over-modal').classList.remove('active');
+            startLevel(gameState.currentLevel);
+        }
+
+        function nextLevel() {
+            document.getElementById('level-win-modal').classList.remove('active');
+            if (gameState.currentLevel < levelDesigns.length) {
+                gameState.currentLevel++;
+                startLevel(gameState.currentLevel);
+            } else {
+                showScreen('level-select-screen');
+            }
+        }
+
+        function stopGameEngine() {
+            gameState.isPlaying = false;
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+        }
+
+        window.addEventListener('resize', () => {
+            if (renderer && camera && document.getElementById('canvas-container')) {
+                const container = document.getElementById('canvas-container');
+                const w = container.clientWidth || window.innerWidth;
+                const h = container.clientHeight || window.innerHeight;
+                camera.aspect = w / h;
+                camera.updateProjectionMatrix();
+                renderer.setSize(w, h);
+            }
+        });
+
+        window.onload = () => showScreen('home-screen');
+    </script>
 </body>
-          </html>
+        </html>
